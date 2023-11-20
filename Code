@@ -1,0 +1,82 @@
+//Mariana Cuevas Cruz
+//Universidad Politécnica de Yucatán
+//EMB-6A
+
+#include <TM1637Display.h> // Esta librería permite controlar la pantalla de siete segmentos TM1637.
+#include <RTClib.h> // Esta librería permite la interacción con el módulo RTC DS3231.
+#include <Arduino.h> //  Esta es una librería estándar de Arduino que proporciona funcionalidades básicas.
+
+// Module connection pins (Digital Pins)
+#define cloc 5
+#define datoo 18
+// Para activar los dos puntos ":" en el TM1637 se usa la combinacion 0b01000000
+int tipo = 0b01000000;
+// Definen los pines para dos botones que se utilizarán para ajustar la hora y los minutos.
+int btn1 = 12;
+int btn = 26;
+int hora;
+int minutos; 
+// Variables que se utilizan para indicar si se ha presionado el botón de ajuste de la hora o los minutos.
+volatile bool buttonhora = false;
+volatile bool buttonminuto = false;
+// Inicializa el objeto de la pantalla TM1637, utilizando los pines definidos anteriormente.
+TM1637Display display(cloc, datoo);
+
+// Inicializa el objeto RTC.
+RTC_DS3231 rtc;
+
+////////////////// INTERRUPCIONES //////////////////
+
+/*Son funciones de interrupción que se activan cuando se 
+presionan los botones de ajuste de hora y minutos respectivamente.*/
+
+void cambiodehora(){
+  buttonhora = true;
+}
+
+void cambiodeminuto(){
+  buttonminuto = true;
+}
+
+
+void setup()
+{
+  rtc.begin();
+  display.setBrightness(7);
+  display.clear();
+  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  *Con esta funcion, nosotros vamos a configurar la hora actual al RTC*
+  pinMode(btn1, INPUT_PULLUP);
+  pinMode(btn, INPUT_PULLUP);
+  //aplicamos las interrupciones
+  attachInterrupt(btn1, cambiodehora, FALLING);
+  attachInterrupt(btn, cambiodeminuto, FALLING);
+}
+
+void loop()
+{
+  DateTime now = rtc.now(); 
+  hora = now.hour();
+  minutos = now.minute();
+  int second = now.second();
+ 
+  if(buttonhora){
+    buttonhora = false;
+    hora = (hora+1) % 24;
+    rtc.adjust(DateTime(now.year(), now.month(), now.day(), hora, now.minute(), 0));
+  }
+
+  if(buttonminuto){
+    buttonminuto = false;
+    minutos = (minutos+1) % 60;
+    rtc.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), minutos, 0));
+  }
+  //display.showNumberDecEx(hora, tipo, true, 2, 0); //horas
+ // display.showNumberDecEx(minutos, tipo, true, 2, 2); //minutos
+
+  if (second % 2 == 0) {
+    display.showNumberDecEx(hora * 100 + minutos, 0b01000000, true); // Show the first dot
+  } else {
+    display.showNumberDecEx(hora * 100 + minutos, 0, true); // Do not show the first dot
+  }
+
+}
